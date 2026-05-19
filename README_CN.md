@@ -169,6 +169,84 @@ ConnectomeLoader::load_csv(std::path::Path::new("my_connectome.csv"), &mut build
 let db = builder.build(std::path::Path::new("my_network.braindb"))?;
 ```
 
+## 🧬 大脑 → 肌肉链路
+
+BrainGo db 不仅仅是在隔离状态下仿真神经元——它驱动物理身体。
+完整的闭环链路已在 C. elegans 上与 [BAAIWorm](https://github.com/Jessie940611/BAAIWorm) 项目验证通过：
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                        闭环控制周期                                   │
+│                                                                      │
+│  感觉输入 ──▶ BrainGo db 神经仿真 ──▶ 运动神经元电压                │
+│     ▲                                    │                           │
+│     │                                    ▼                           │
+│  身体状态 ◀── FEM 身体 (Metaworm) ◀── 肌肉激活                      │
+│     ▲                  ▲                  ▲                         │
+│     │                  │                  │                           │
+│   环境             物理仿真         CNN / Sigmoid                    │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### 逐步流程
+
+1. **感觉输入 → 神经仿真**
+   - 感觉神经元（AWA、AWC、ASH、PLM 等）接收刺激电流
+   - BrainGo db 运行 5 阶段仿真循环（电突触 → 化学突触 → 衰减 → 更新 → STDP）
+   - 302 个神经元通过 ~6000 个化学突触 + ~500 个电突触传播活动
+
+2. **运动神经元电压 → 肌肉激活**
+   - 80 个运动神经元（VA、VB、DA、DB、VD、DD、AS、RM\*）产生膜电压
+   - 两种转换路径：
+     - **Sigmoid**（生物物理）：`activation = σ((V_mem - V_threshold) / scale)` — 直接映射电压到肌肉收缩
+     - **CNN**（学习得到）：`Conv1d(80→96, kernel=21)` 在运动神经元电压历史滑动窗口 → 96 个肌肉信号，后处理 `(output + 80) / 100`
+
+3. **肌肉激活 → 身体运动**
+   - 48 块体肌（24 背侧 + 24 腹侧）+ 头部肌肉接收激活水平
+   - 指令中间神经元（AVB=前进、AVA=后退）沿身体产生行波
+   - Metaworm FEM 物理仿真产生身体形态和位置
+
+4. **身体状态 → 感觉反馈**（闭环）
+   - 身体位置决定哪些感觉神经元被刺激（如趋化梯度、触觉）
+   - 形成闭环：线虫向引诱剂导航
+
+### 训练（eworm_learn）
+
+神经网络**不是天生就能产生正确行为的**——突触权重必须经过训练。
+BAAIWorm 的 `eworm_learn` 模块执行此训练：
+
+- **方法**：基于梯度的突触电导优化，使用传递阻抗（核）方法
+- **目标**：使仿真运动神经元电压的相关矩阵与实验记录的匹配
+- **规模**：跨 100 个 epoch 优化 ~6000+ 个突触权重，使用多 GPU（CuPy）加速
+- **结果**：训练后，网络产生真实的锯齿形趋化爬行行为
+
+在 BrainGo db 管线中，训练后的权重通过 `BAAIWormLoader` 直接加载到 `.braindb` 文件中，
+因此数据库已包含优化后的连接组。
+
+### 关键模块
+
+| 模块 | 作用 | 来源 |
+|------|------|------|
+| `BrainDBNeuronSim` | 通过 pyo3 调用 Rust 神经仿真 | `baaiworm_bridge/braindb_sim/` |
+| `BrainDBCircuit` | 神经元访问、刺激注入 | `baaiworm_bridge/braindb_sim/` |
+| `MuscleInterface` | 运动电压 → 肌肉激活（sigmoid） | `baaiworm_bridge/braindb_sim/` |
+| `CNN2Model` | 运动电压 → 肌肉激活（学习 CNN） | `baaiworm_bridge/control/` |
+| `BrainDBNeuralDriver` | 完整控制回路：刺激→仿真→肌肉 | `baaiworm_bridge/control/` |
+| `neuronXcore` | 3D 可视化 + C++ 桥接 | `BAAIWorm/neuronXcore/` |
+
+### 快速运行
+
+```bash
+# 仅神经仿真（无身体）
+python -m braindb_sim.run_baaiworm_braindb --braindb celegans.braindb --neural-only --duration 1000
+
+# 完整闭环 + Metaworm 身体
+python -m braindb_sim.run_baaiworm_braindb --braindb celegans.braindb --duration 5000
+
+# 带感觉刺激
+python -m braindb_sim.run_baaiworm_braindb --braindb celegans.braindb --stimulus AWAL=10 AVBL=5
+```
+
 ### 关于 `python` 特性
 
 `Cargo.toml` 默认启用 `python` 特性。构建需要有效的 Python 安装（`PYO3_PYTHON` 环境变量或 `PATH` 中的 `python`）。如果不方便，可在 `Cargo.toml` 中设置：

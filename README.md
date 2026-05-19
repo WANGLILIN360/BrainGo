@@ -170,6 +170,84 @@ ConnectomeLoader::load_csv(std::path::Path::new("my_connectome.csv"), &mut build
 let db = builder.build(std::path::Path::new("my_network.braindb"))?;
 ```
 
+## 🧬 Brain → Muscle Pipeline
+
+BrainGo db doesn't just simulate neurons in isolation — it drives a physical body.
+The full closed-loop pipeline, validated on C. elegans with the [BAAIWorm](https://github.com/Jessie940611/BAAIWorm) project, works as follows:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                     Closed-Loop Control Cycle                        │
+│                                                                      │
+│  Sensory Input ──▶ BrainGo db Neural Sim ──▶ Motor Neuron Voltages  │
+│       ▲                                      │                       │
+│       │                                      ▼                       │
+│  Body State ◀── FEM Body (Metaworm) ◀── Muscle Activation           │
+│       ▲                    ▲                    ▲                     │
+│       │                    │                    │                     │
+│  Environment          Physics Sim         CNN / Sigmoid              │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### Step-by-step
+
+1. **Sensory Input → Neural Simulation**
+   - Sensory neurons (AWA, AWC, ASH, PLM, etc.) receive stimulus currents
+   - BrainGo db runs the 5-phase simulation loop (gap junctions → synapses → decay → update → STDP)
+   - 302 neurons fire and propagate activity through ~6000 chemical synapses + ~500 gap junctions
+
+2. **Motor Neuron Voltages → Muscle Activation**
+   - 80 motor neurons (VA, VB, DA, DB, VD, DD, AS, RM\*) produce membrane voltages
+   - Two conversion paths:
+     - **Sigmoid** (biophysical): `activation = σ((V_mem - V_threshold) / scale)` — directly maps voltage to muscle contraction
+     - **CNN** (learned): `Conv1d(80→96, kernel=21)` sliding window over motor neuron voltage history → 96 muscle signals, post-processed as `(output + 80) / 100`
+
+3. **Muscle Activation → Body Motion**
+   - 48 body muscles (24 dorsal + 24 ventral) + head muscles receive activation levels
+   - Command interneurons (AVB=forward, AVA=reverse) generate traveling waves along the body
+   - Metaworm FEM physics simulation produces body shape and position
+
+4. **Body State → Sensory Feedback** (closed loop)
+   - Body position determines which sensory neurons are stimulated (e.g., chemotaxis gradient, touch)
+   - This closes the loop: the worm navigates toward attractants
+
+### Training (eworm_learn)
+
+The neural network is **not pre-wired to produce correct behavior** — synaptic weights must be
+trained. BAAIWorm's `eworm_learn` module performs this training:
+
+- **Method**: Gradient-based optimization of synaptic conductances using transfer impedance (kernel) method
+- **Objective**: Match correlation matrices of simulated motor neuron voltages to experimentally recorded ones
+- **Scale**: Optimizes ~6000+ synaptic weights across 100 epochs with multi-GPU (CuPy) acceleration
+- **Result**: After training, the network produces realistic zigzag chemotaxis locomotion
+
+In the BrainGo db pipeline, trained weights are loaded directly into the `.braindb` file via
+`BAAIWormLoader`, so the database already contains the optimized connectome.
+
+### Key Modules
+
+| Module | Role | Source |
+|--------|------|--------|
+| `BrainDBNeuronSim` | Rust neural simulation via pyo3 | `baaiworm_bridge/braindb_sim/` |
+| `BrainDBCircuit` | Neuron access, stimulus injection | `baaiworm_bridge/braindb_sim/` |
+| `MuscleInterface` | Motor voltage → muscle activation (sigmoid) | `baaiworm_bridge/braindb_sim/` |
+| `CNN2Model` | Motor voltage → muscle activation (learned CNN) | `baaiworm_bridge/control/` |
+| `BrainDBNeuralDriver` | Full control loop: stimulus → sim → muscle | `baaiworm_bridge/control/` |
+| `neuronXcore` | 3D visualization + C++ bridge | `BAAIWorm/neuronXcore/` |
+
+### Quick Run
+
+```bash
+# Neural-only simulation (no body)
+python -m braindb_sim.run_baaiworm_braindb --braindb celegans.braindb --neural-only --duration 1000
+
+# Full closed-loop with Metaworm body
+python -m braindb_sim.run_baaiworm_braindb --braindb celegans.braindb --duration 5000
+
+# With sensory stimulus
+python -m braindb_sim.run_baaiworm_braindb --braindb celegans.braindb --stimulus AWAL=10 AVBL=5
+```
+
 ### About the `python` Feature
 
 `Cargo.toml` enables the `python` feature by default. Building it requires a
