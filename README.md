@@ -10,6 +10,8 @@
 
 *From-scratch Rust implementation of a brain-network simulation database that bridges biological neural circuits to physical robots — simulating brains, then driving bodies.*
 
+English | [中文](README_CN.md)
+
 </div>
 
 ---
