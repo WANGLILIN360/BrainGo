@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧠 BraindGo db
+# 🧠 BrainGo db
 
 **Brain simulation database → Robot driving engine — from C. elegans to humanoid**
 
@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8+-green.svg)](https://www.python.org/)
 
-*From-scratch Rust implementation of a brain-network simulation database that bridges biological neural circuits to physical robots — simulating brains, then driving bodies.*
+*From-scratch Rust implementation of BrainGo db — full-scale brain network simulation database that bridges biological neural circuits to physical robots — simulating brains, then driving bodies.*
 
 English | [中文](README_CN.md)
 
@@ -57,8 +57,8 @@ Concurrency: thread-local current buffers + reduce, barrier synchronization
 
 ```bash
 # Clone the repository
-git clone https://github.com/wanglilin/BraindGo.git
-cd BraindGo
+git clone https://github.com/wanglilin/BrainGo.git
+cd BrainGo
 
 # Build and test
 cargo check
@@ -85,11 +85,11 @@ data/celegans/
 # Build the CLI tool
 cargo build --features cli --no-default-features
 
-# Load bundled C. elegans data (default, no --dir needed)
-braindb-cli load-worm --output celegans.braindb
+# Load bundled C. elegans data
+braindb-cli load-worm data/celegans/ --output celegans.braindb
 
 # Or load from any directory with the same layout
-braindb-cli load-worm --dir /path/to/my/connectome --output my_net.braindb
+braindb-cli load-worm /path/to/my/connectome --output my_net.braindb
 
 # Verify the loaded data
 braindb-cli info celegans.braindb
@@ -209,7 +209,7 @@ tests/
 
 ## 🗺️ Roadmap — From Brain to Robot
 
-BraindGo db follows a dual-track strategy: **biological simulation ↔ hardware actuation**.
+BrainGo db follows a dual-track strategy: **biological simulation ↔ hardware actuation**.
 Each phase validates the simulation engine against real neural data, then deploys it to drive a physical robot.
 
 | Phase | 🧬 Biological Circuit | 🔧 Hardware Circuit | Neuron Scale | Timeline |
@@ -222,7 +222,7 @@ Each phase validates the simulation engine against real neural data, then deploy
 ### How it works
 
 ```
-Biological Data          BraindGo db Engine           Robot Actuation
+Biological Data          BrainGo db Engine            Robot Actuation
 ──────────────  ──▶  ──────────────────────  ──▶  ─────────────────
 Connectome /         Simulation loop:            Motor neuron output →
 Electrophysiology    5-phase parallel step        Servo / Actuator / PID

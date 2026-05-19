@@ -46,10 +46,9 @@ enum Commands {
     },
 
     /// Load a connectome directory into a .braindb file.
-    /// Defaults to the bundled C. elegans data (data/celegans/).
+    /// Use `data/celegans/` for the bundled C. elegans data.
     LoadWorm {
-        /// Path to connectome directory (default: bundled data/celegans/).
-        #[arg(short, long, default_value = "")]
+        /// Path to connectome data directory.
         dir: String,
         /// Output .braindb path.
         #[arg(short, long, default_value = "celegans.braindb")]
@@ -194,18 +193,12 @@ fn cmd_build(output: &str, n_neurons: u32, model_str: &str, p_connect: f64) {
 
 #[cfg(feature = "cli")]
 fn cmd_load_worm(dir: &str, output: &str) {
-    // If dir is empty, use the bundled data/celegans/ directory.
-    let dir_path = if dir.is_empty() {
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data").join("celegans")
-    } else {
-        std::path::PathBuf::from(dir)
-    };
-    let loader = BAAIWormLoader::load_from_dir(&dir_path)
+    let loader = BAAIWormLoader::load_from_dir(std::path::Path::new(dir))
         .expect("load_from_dir failed");
     let db = loader.into_braindb(std::path::Path::new(output))
         .expect("into_braindb failed");
-    println!("Loaded from {:?} → {} neurons, {} synapses, {} gap junctions",
-        dir_path, db.header.n_neurons, db.header.n_synapses, db.header.n_gap_junctions);
+    println!("Loaded from {} → {} neurons, {} synapses, {} gap junctions",
+        dir, db.header.n_neurons, db.header.n_synapses, db.header.n_gap_junctions);
 }
 
 #[cfg(feature = "cli")]

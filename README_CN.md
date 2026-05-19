@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧠 BraindGo db
+# 🧠 BrainGo db
 
 **大脑仿真数据库 → 机器人驱动引擎 — 从线虫到人形机器人**
 
@@ -57,8 +57,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/wanglilin/BraindGo.git
-cd BraindGo
+git clone https://github.com/wanglilin/BrainGo.git
+cd BrainGo
 
 # 构建和测试
 cargo check
@@ -84,11 +84,11 @@ data/celegans/
 # 构建 CLI 工具
 cargo build --features cli --no-default-features
 
-# 加载内置线虫数据（默认，无需 --dir）
-braindb-cli load-worm --output celegans.braindb
+# 加载内置线虫数据
+braindb-cli load-worm data/celegans/ --output celegans.braindb
 
 # 或加载任何遵循相同目录结构的外部数据
-braindb-cli load-worm --dir /path/to/my/connectome --output my_net.braindb
+braindb-cli load-worm /path/to/my/connectome --output my_net.braindb
 
 # 验证加载的数据
 braindb-cli info celegans.braindb
@@ -206,7 +206,7 @@ tests/
 
 ## 🗺️ 路线图 — 从大脑到机器人
 
-BraindGo db 采用双轨策略：**生物仿真 ↔ 硬件驱动**。
+BrainGo db 采用双轨策略：**生物仿真 ↔ 硬件驱动**。
 每个阶段先用真实神经数据验证仿真引擎，再将其部署到物理机器人。
 
 | 阶段 | 🧬 生物线路 | 🔧 硬件线路 | 神经元规模 | 时间线 |

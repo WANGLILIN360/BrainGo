@@ -2,9 +2,9 @@
 name = "braindb"
 version = "0.1.0"
 edition = "2021"
-description = "BraindGo db — full-scale brain network simulation database"
+description = "BrainGo db — full-scale brain network simulation database"
 license = "Apache-2.0 OR MIT"
-repository = "https://github.com/wanglilin/BraindGo"
+repository = "https://github.com/wanglilin/BrainGo"
 rust-version = "1.75"
 
 [lib]
