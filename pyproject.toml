@@ -1,0 +1,28 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "braindb"
+version = "0.1.0"
+description = "BrainDB — full-scale brain network simulation database"
+readme = "README.md"
+license = { text = "Apache-2.0 OR MIT" }
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "numpy"]
+
+[tool.maturin]
+features = ["pyo3-extension-module"]
+python-source = "python"
+module-name = "braindb._braindb"
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
