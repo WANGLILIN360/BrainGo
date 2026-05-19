@@ -236,6 +236,23 @@ Electrophysiology    5-phase parallel step        Servo / Actuator / PID
 - Each subsequent phase adds neuron count, plasticity complexity, and
   real-time constraints — the database engine scales via mmap + CSR + rayon.
 
+### 🔮 Ultimate Vision — Consciousness Carrier
+
+Beyond driving robots, BrainGo db aims to become the **data carrier for brain consciousness**.
+When brain-computer interfaces (BCI) one day make it possible to upload human consciousness,
+there must exist a database capable of faithfully storing and replaying the full state of
+every neuron, every synapse, every spike — the complete neural correlate of a mind.
+
+BrainGo db is designed from the ground up for this eventuality:
+
+- **Mmap + CSR** → petabyte-scale brain state, byte-addressable
+- **5-phase simulation** → biophysically accurate replay of uploaded neural dynamics
+- **Snapshot / restore** → checkpoint and resume a living connectome
+- **Plasticity (STDP / structural)** → the uploaded mind can continue to learn and evolve
+
+> *When the day comes to upload a mind, the database that holds it must be as rigorous
+> as the brain itself. BrainGo db intends to be that database.*
+
 ## 🛠️ Dependencies
 
 **Core:** memmap2, bytemuck, thiserror, rayon, serde, postcard, calamine, rand, realfft, nalgebra, static_assertions
