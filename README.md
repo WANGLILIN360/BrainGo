@@ -53,7 +53,7 @@ Concurrency: thread-local current buffers + reduce, barrier synchronization
 
 ## 🚀 Quick Start
 
-### Build from Source
+### 1. Build from Source
 
 ```bash
 # Clone the repository
@@ -65,18 +65,109 @@ cargo check
 cargo test
 ```
 
-### Python Bindings
+### 2. Initialize C. elegans Data
+
+The 302-neuron C. elegans connectome data is **bundled** in this repository under
+`data/celegans/`. The import method `load_from_dir()` is generic — it accepts any
+directory following the same layout, so you can load your own connectome data too.
+
+Bundled data structure:
+```
+data/celegans/
+├── network/config.json                              — Cell name ↔ ID mapping
+├── components/param/cell/<NAME>.json                — Per-neuron 17-channel conductances
+└── components/param/connection/SI5-302.xlsx         — Synaptic & gap junction adjacency matrices
+```
+
+**Using the CLI** (requires `cli` feature):
 
 ```bash
-# Install with maturin
-pip install maturin
-maturin develop --release
+# Build the CLI tool
+cargo build --features cli --no-default-features
 
-# Use in Python
+# Load bundled C. elegans data (default, no --dir needed)
+braindb-cli load-worm --output celegans.braindb
+
+# Or load from any directory with the same layout
+braindb-cli load-worm --dir /path/to/my/connectome --output my_net.braindb
+
+# Verify the loaded data
+braindb-cli info celegans.braindb
+# Output:
+#   Neurons:        302
+#   Synapses:       ~6000+
+#   Gap junctions:  ~500+
+#   Compartments:   604
+```
+
+**Using Rust API**:
+
+```rust
+use braindb::storage::loader::BAAIWormLoader;
+
+// Load from bundled data directory
+let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("data").join("celegans");
+let loader = BAAIWormLoader::load_from_dir(&dir)?;
+let db = loader.into_braindb(std::path::Path::new("celegans.braindb"))?;
+println!("Loaded {} neurons", db.header.n_neurons); // 302
+
+// Or load from any external directory with the same layout
+let loader = BAAIWormLoader::load_from_dir(std::path::Path::new("/path/to/my/connectome"))?;
+```
+
+**Using Python**:
+
+```python
 import braindb
-db = braindb.BrainDB.open("celegans.braindb")
-print(db.neuron_count())  # 302
-print(db.get_neuron_name(0))  # I1L
+
+# Open a pre-built .braindb file
+db = braindb.BrainDB("celegans.braindb")
+print(db.neuron_count())     # 302
+print(db.get_neuron_name(0)) # I1L
+print(db.get_all_neuron_names())  # ['I1L', 'I1R', 'I2L', ...]
+```
+
+### 3. Run Simulation
+
+```bash
+# CLI: run 100ms simulation with current injection into neuron 0
+braindb-cli run celegans.braindb -d 100 --stimulus "0:30"
+
+# CLI: with STDP plasticity enabled
+braindb-cli run celegans.braindb -d 1000 --stdp --snapshot state.snap
+```
+
+```python
+# Python: run simulation
+from braindb import BrainDB, Simulation
+
+db = BrainDB("celegans.braindb")
+sim = Simulation("celegans.braindb")
+sim.set_neuron_input(0, 30.0)  # inject 30 pA into neuron 0
+sim.run(1000)                   # 100 ms (1000 ticks × 0.1ms)
+v = sim.get_neuron_voltage(0)   # read membrane voltage
+```
+
+### 4. Load Your Own Connectome
+
+For custom networks, use the generic CSV/JSON connectome loader:
+
+```csv
+# my_connectome.csv
+pre_id,post_id,weight,delay_ms,syn_type,receptor_type
+0,1,1.0,1.5,1,0
+0,2,0.5,2.0,1,0
+1,2,-0.3,1.0,2,1
+```
+
+```rust
+use braindb::storage::loader::connectome::ConnectomeLoader;
+use braindb::storage::builder::BrainDBBuilder;
+
+let mut builder = BrainDBBuilder::new();
+// ... add neurons, regions, types ...
+ConnectomeLoader::load_csv(std::path::Path::new("my_connectome.csv"), &mut builder)?;
+let db = builder.build(std::path::Path::new("my_network.braindb"))?;
 ```
 
 ### About the `python` Feature

@@ -45,10 +45,11 @@ enum Commands {
         p_connect: f64,
     },
 
-    /// Load a BAAIWorm C. elegans connectome into a .braindb file.
+    /// Load a connectome directory into a .braindb file.
+    /// Defaults to the bundled C. elegans data (data/celegans/).
     LoadWorm {
-        /// Path to BAAIWorm eworm/ directory.
-        #[arg(short, long)]
+        /// Path to connectome directory (default: bundled data/celegans/).
+        #[arg(short, long, default_value = "")]
         dir: String,
         /// Output .braindb path.
         #[arg(short, long, default_value = "celegans.braindb")]
@@ -138,6 +139,7 @@ fn main() {
     match cli.command {
         Commands::Build { output, neurons, model, p_connect } => cmd_build(&output, neurons, &model, p_connect),
         Commands::LoadWorm { dir, output } => cmd_load_worm(&dir, &output),
+
         Commands::Info { path } => cmd_info(&path),
         Commands::Run { path, duration_ms, stimulus, stdp, structural_plasticity, snapshot } => {
             cmd_run(&path, duration_ms, stimulus.as_deref(), stdp, structural_plasticity, snapshot.as_deref())
@@ -192,12 +194,18 @@ fn cmd_build(output: &str, n_neurons: u32, model_str: &str, p_connect: f64) {
 
 #[cfg(feature = "cli")]
 fn cmd_load_worm(dir: &str, output: &str) {
-    let loader = BAAIWormLoader::load_from_dir(std::path::Path::new(dir))
+    // If dir is empty, use the bundled data/celegans/ directory.
+    let dir_path = if dir.is_empty() {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data").join("celegans")
+    } else {
+        std::path::PathBuf::from(dir)
+    };
+    let loader = BAAIWormLoader::load_from_dir(&dir_path)
         .expect("load_from_dir failed");
     let db = loader.into_braindb(std::path::Path::new(output))
         .expect("into_braindb failed");
-    println!("C. elegans loaded → {} neurons, {} synapses, {} gap junctions",
-        db.header.n_neurons, db.header.n_synapses, db.header.n_gap_junctions);
+    println!("Loaded from {:?} → {} neurons, {} synapses, {} gap junctions",
+        dir_path, db.header.n_neurons, db.header.n_synapses, db.header.n_gap_junctions);
 }
 
 #[cfg(feature = "cli")]

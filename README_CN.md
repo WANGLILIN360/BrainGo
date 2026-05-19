@@ -53,7 +53,7 @@
 
 ## 🚀 快速开始
 
-### 从源码构建
+### 1. 从源码构建
 
 ```bash
 # 克隆仓库
@@ -65,18 +65,108 @@ cargo check
 cargo test
 ```
 
-### Python 绑定
+### 2. 初始化线虫数据
+
+302 神经元的秀丽隐杆线虫连接组数据**已内置**在本仓库的 `data/celegans/` 目录中。
+导入方法 `load_from_dir()` 是通用的——只要目录遵循相同的布局结构，就可以加载任何连接组数据。
+
+内置数据结构：
+```
+data/celegans/
+├── network/config.json                              — 细胞名 ↔ ID 映射
+├── components/param/cell/<NAME>.json                — 每个神经元 17 通道电导
+└── components/param/connection/SI5-302.xlsx         — 突触和电突触邻接矩阵
+```
+
+**使用 CLI**（需要 `cli` 特性）：
 
 ```bash
-# 使用 maturin 安装
-pip install maturin
-maturin develop --release
+# 构建 CLI 工具
+cargo build --features cli --no-default-features
 
-# 在 Python 中使用
+# 加载内置线虫数据（默认，无需 --dir）
+braindb-cli load-worm --output celegans.braindb
+
+# 或加载任何遵循相同目录结构的外部数据
+braindb-cli load-worm --dir /path/to/my/connectome --output my_net.braindb
+
+# 验证加载的数据
+braindb-cli info celegans.braindb
+# 输出：
+#   Neurons:        302
+#   Synapses:       ~6000+
+#   Gap junctions:  ~500+
+#   Compartments:   604
+```
+
+**使用 Rust API**：
+
+```rust
+use braindb::storage::loader::BAAIWormLoader;
+
+// 从内置数据目录加载
+let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("data").join("celegans");
+let loader = BAAIWormLoader::load_from_dir(&dir)?;
+let db = loader.into_braindb(std::path::Path::new("celegans.braindb"))?;
+println!("已加载 {} 个神经元", db.header.n_neurons); // 302
+
+// 或从任何遵循相同目录结构的外部目录加载
+let loader = BAAIWormLoader::load_from_dir(std::path::Path::new("/path/to/my/connectome"))?;
+```
+
+**使用 Python**：
+
+```python
 import braindb
-db = braindb.BrainDB.open("celegans.braindb")
-print(db.neuron_count())  # 302
-print(db.get_neuron_name(0))  # I1L
+
+# 打开预构建的 .braindb 文件
+db = braindb.BrainDB("celegans.braindb")
+print(db.neuron_count())     # 302
+print(db.get_neuron_name(0)) # I1L
+print(db.get_all_neuron_names())  # ['I1L', 'I1R', 'I2L', ...]
+```
+
+### 3. 运行仿真
+
+```bash
+# CLI：运行 100ms 仿真，向神经元 0 注入电流
+braindb-cli run celegans.braindb -d 100 --stimulus "0:30"
+
+# CLI：启用 STDP 可塑性
+braindb-cli run celegans.braindb -d 1000 --stdp --snapshot state.snap
+```
+
+```python
+# Python：运行仿真
+from braindb import BrainDB, Simulation
+
+db = BrainDB("celegans.braindb")
+sim = Simulation("celegans.braindb")
+sim.set_neuron_input(0, 30.0)  # 向神经元 0 注入 30 pA
+sim.run(1000)                   # 100 ms（1000 ticks × 0.1ms）
+v = sim.get_neuron_voltage(0)   # 读取膜电压
+```
+
+### 4. 加载自定义连接组
+
+对于自定义网络，使用通用 CSV/JSON 连接组加载器：
+
+```csv
+# my_connectome.csv
+pre_id,post_id,weight,delay_ms,syn_type,receptor_type
+0,1,1.0,1.5,1,0
+0,2,0.5,2.0,1,0
+1,2,-0.3,1.0,2,1
+```
+
+```rust
+use braindb::storage::loader::connectome::ConnectomeLoader;
+use braindb::storage::builder::BrainDBBuilder;
+
+let mut builder = BrainDBBuilder::new();
+// ... 添加神经元、脑区、类型 ...
+ConnectomeLoader::load_csv(std::path::Path::new("my_connectome.csv"), &mut builder)?;
+let db = builder.build(std::path::Path::new("my_network.braindb"))?;
 ```
 
 ### 关于 `python` 特性

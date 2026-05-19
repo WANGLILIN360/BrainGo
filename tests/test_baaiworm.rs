@@ -9,12 +9,12 @@ use braindb::storage::mmap_db::BrainDB;
 use std::path::PathBuf;
 use tempfile::tempdir;
 
-/// Path to the BAAIWorm eworm/ directory.
-/// Adjust if the BAAIWorm repo is at a different location.
+/// Path to the C. elegans connectome data directory.
+/// Defaults to the bundled data/celegans/ inside this crate.
+/// Override with BAAIWORM_DIR env var for external data sources.
 fn eworm_dir() -> PathBuf {
-    // Default: sibling directory of braindb
     let base = std::env::var("BAAIWORM_DIR").unwrap_or_else(|_| {
-        format!("{}/BAAIWorm-main/BAAIWorm-main/eworm",
+        format!("{}/data/celegans",
             std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into()))
     });
     PathBuf::from(base)
